@@ -8,5 +8,5 @@ def exec_command(cmd):
 version = json.loads(open("metadata.json").read())['version']
 
 exec_command("zip -j gajim@base-art.net-%d.zip extension.js metadata.json" % version)
-exec_command("git tag %d" * version)
+exec_command("git tag %d" % version)
 
