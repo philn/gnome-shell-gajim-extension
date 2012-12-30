@@ -4,5 +4,5 @@
  "description": "Displays Gajim incoming chats as notifications in the Shell message tray.",
  "shell-version": [ "3.6" ],
  "url": "http://github.com/philn/gnome-shell-gajim-extension",
- "version": 1
+ "version": 2
 }
