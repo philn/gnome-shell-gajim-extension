@@ -117,7 +117,7 @@ const Source = new Lang.Class({
         let avatarUri = null;
         if (result['PHOTO']) {
             let mimeType = result['PHOTO']['TYPE'];
-            let avatarData = GLib.Base64.decode(result['PHOTO']['BINVAL']);
+            let avatarData = GLib.base64_decode(result['PHOTO']['BINVAL']);
             let sha = result['PHOTO']['SHA'];
             avatarUri = this._gajimClient.cacheAvatar(mimeType, sha, avatarData);
         }
