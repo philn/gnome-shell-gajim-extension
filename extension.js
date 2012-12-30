@@ -14,45 +14,6 @@ const MessageTray = imports.ui.messageTray;
 const Shell = imports.gi.Shell;
 const TelepathyClient = imports.ui.components.telepathyClient;
 
-
-// http://ntt.cc/ext/base64-Encoding-Decoding.html
-const keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-
-function decode64(input) {
-     let output = "";
-     let chr1, chr2, chr3;
-     let enc1, enc2, enc3, enc4;
-     let i = 0;
-
-     input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
-
-     do {
-        enc1 = keyStr.indexOf(input.charAt(i++));
-        enc2 = keyStr.indexOf(input.charAt(i++));
-        enc3 = keyStr.indexOf(input.charAt(i++));
-        enc4 = keyStr.indexOf(input.charAt(i++));
-
-        chr1 = (enc1 << 2) | (enc2 >> 4);
-        chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
-        chr3 = ((enc3 & 3) << 6) | enc4;
-
-        output = output + String.fromCharCode(chr1);
-
-        if (enc3 != 64) {
-           output = output + String.fromCharCode(chr2);
-        }
-        if (enc4 != 64) {
-           output = output + String.fromCharCode(chr3);
-        }
-
-        chr1 = chr2 = chr3 = "";
-        enc1 = enc2 = enc3 = enc4 = "";
-
-     } while (i < input.length);
-
-     return unescape(output);
-}
-
 function wrappedText(text, sender, senderAlias, timestamp, direction) {
     if (!timestamp)
         timestamp = (Date.now()  / 1000);
@@ -156,7 +117,7 @@ const Source = new Lang.Class({
         let avatarUri = null;
         if (result['PHOTO']) {
             let mimeType = result['PHOTO']['TYPE'];
-            let avatarData = decode64(result['PHOTO']['BINVAL']);
+            let avatarData = GLib.Base64.decode(result['PHOTO']['BINVAL']);
             let sha = result['PHOTO']['SHA'];
             avatarUri = this._gajimClient.cacheAvatar(mimeType, sha, avatarData);
         }
