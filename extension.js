@@ -62,36 +62,41 @@ const Source = new Lang.Class({
         this._notifyTimeoutId = 0;
 
         let proxy = this._gajimClient.proxy();
-        proxy.list_contactsRemote(this._accountName, Lang.bind(this, this._gotContactList));
-        proxy.account_infoRemote(this._accountName, Lang.bind(this, this._gotAccountInfo));
-        this._statusChangeId = proxy.connect('ContactStatus',
-                                             Lang.bind(this, this._onStatusChange));
-        this._contactAbsenceId = proxy.connect('ContactAbsence',
-                                               Lang.bind(this, this._onStatusChange));
-        this._chatStateId = proxy.connect('ChatState',
-                                          Lang.bind(this, this._onChatState));
-        this._messageSentId = proxy.connect('MessageSent',
-                                            Lang.bind(this, this._messageSent));
-        this._newMessageId = proxy.connect('NewMessage',
-                                             Lang.bind(this, this._messageReceived));
+        if (proxy) {
+            proxy.list_contactsRemote(this._accountName, Lang.bind(this, this._gotContactList));
+            proxy.account_infoRemote(this._accountName, Lang.bind(this, this._gotAccountInfo));
+            this._statusChangeId = proxy.connect('ContactStatus',
+                                                 Lang.bind(this, this._onStatusChange));
+            this._contactAbsenceId = proxy.connect('ContactAbsence',
+                                                   Lang.bind(this, this._onStatusChange));
+            this._chatStateId = proxy.connect('ChatState',
+                                              Lang.bind(this, this._onChatState));
+            this._messageSentId = proxy.connect('MessageSent',
+                                                Lang.bind(this, this._messageSent));
+            this._newMessageId = proxy.connect('NewMessage',
+                                               Lang.bind(this, this._messageReceived));
+        }
     },
 
     destroy: function() {
         let proxy = this._gajimClient.proxy();
-        proxy.disconnect(this._statusChangeId);
-        proxy.disconnect(this._contactAbsenceId);
-        proxy.disconnect(this._chatStateId);
-        proxy.disconnect(this._messageSentId);
-        proxy.disconnect(this._newMessageId);
+        if (proxy) {
+            proxy.disconnect(this._statusChangeId);
+            proxy.disconnect(this._contactAbsenceId);
+            proxy.disconnect(this._chatStateId);
+            proxy.disconnect(this._messageSentId);
+            proxy.disconnect(this._newMessageId);
+        }
         this._notification.disconnect(this._notificationClickedId);
         this.disconnect(this._summaryClickedId);
         this.parent();
     },
 
     _gotAccountInfo: function(result, excp) {
-        let proxy = this._gajimClient.proxy();
         this._myJid = result['jid'];
-        proxy.contact_infoRemote(this._myJid, Lang.bind(this, this._gotMyContactInfos));
+        let proxy = this._gajimClient.proxy();
+        if (proxy)
+            proxy.contact_infoRemote(this._myJid, Lang.bind(this, this._gotMyContactInfos));
     },
 
     _gotMyContactInfos: function(result, excp) {
@@ -108,7 +113,8 @@ const Source = new Lang.Class({
         }
 
         let proxy = this._gajimClient.proxy();
-        proxy.contact_infoRemote(this._authorJid, Lang.bind(this, this._gotContactInfos));
+        if (proxy)
+            proxy.contact_infoRemote(this._authorJid, Lang.bind(this, this._gotContactInfos));
     },
 
     _gotContactInfos: function(result, excp) {
@@ -263,7 +269,9 @@ const Source = new Lang.Class({
     respond: function(text) {
         let jid = this._author;
         let keyID = ""; // unencrypted.
-        this._gajimClient.proxy().send_chat_messageRemote(jid, text, keyID, this._accountName);
+        let proxy = this._gajimClient.proxy();
+        if (proxy)
+            proxy.send_chat_messageRemote(jid, text, keyID, this._accountName);
     },
 
     setChatState: function(state) {
