@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="gnome-shell-extensions-gajim">
+  <schema path="/org/gnome/shell/extensions/gajim/" id="org.gnome.shell.extensions.gajim">
+    <key type="b" name="chat-initiator">
+        <default>true</default>
+        <summary>Use a new Chat source to initiate a chat from search results</summary>
+        <description>Disabling this option means the native Gajim UI will be used to initiate chats from search results</description>
+    </key>
+  </schema>
+</schemalist>

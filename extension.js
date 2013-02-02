@@ -16,6 +16,10 @@ const Search = imports.ui.search;
 const Shell = imports.gi.Shell;
 const TelepathyClient = imports.ui.components.telepathyClient;
 
+const Utils = imports.misc.extensionUtils.getCurrentExtension().imports.utils;
+
+const settings = Utils.getSettings();
+
 function wrappedText(text, sender, senderAlias, timestamp, direction) {
     if (!timestamp)
         timestamp = (Date.now()  / 1000);
@@ -391,8 +395,8 @@ const GajimSearchProvider = new Lang.Class({
             for (let j = 0; j < account["contacts"].length; j++) {
                 let contact = account["contacts"][j];
                 for (let t = 0; t < terms.length; t++) {
-                    if ((contact["jid"].indexOf(terms[t]) != -1)
-                        || (contact["name"].indexOf(terms[t]) != -1)) {
+                    if ((contact["jid"].toLowerCase().indexOf(terms[t]) != -1)
+                        || (contact["name"].toLowerCase().indexOf(terms[t]) != -1)) {
                         let proxy = this._gajimExtension.proxy();
                         if (proxy) {
                             proxy.contact_infoRemote(contact["jid"],
@@ -459,7 +463,8 @@ const GajimIface = {
               { name: 'contact_info', inSignature: 's', outSignature: 'a{sv}'},
               { name: 'account_info', inSignature: 's', outSignature: 'a{ss}'},
               { name: 'list_contacts', inSignature: 's', outSignature: 'aa{sv}'},
-              { name: 'list_accounts', inSignature: '', outSignature: 'as'}],
+              { name: 'list_accounts', inSignature: '', outSignature: 'as'},
+              { name: 'open_chat', inSignature: 'sss', outSignature: 'b'}],
     signals: [{ name: 'NewMessage', inSignature: 'av' },
               { name: 'ChatState', inSignature: 'av' },
               { name: 'ContactStatus', inSignature: 'av' },
@@ -536,12 +541,16 @@ const GajimExtension = new Lang.Class({
     },
 
     initiateChat : function(account, recipient) {
-        let source = new Source(this, account, recipient, "");
-        source.connect('destroy', Lang.bind(this,
-            function() {
-                delete this._sources[recipient];
-            }));
-        this._sources[recipient] = source;
+        if (settings.get_boolean("chat-initiator")) {
+            let source = new Source(this, account, recipient, "");
+            source.connect('destroy', Lang.bind(this,
+                                                function() {
+                                                    delete this._sources[recipient];
+                                                }));
+            this._sources[recipient] = source;
+        } else if (this._proxy) {
+            this._proxy.open_chatRemote(recipient, account, "");
+        }
     },
 
     cacheAvatar : function(mimeType, sha, avatarData) {
