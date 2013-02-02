@@ -58,8 +58,8 @@ const Source = new Lang.Class({
 
         this._notification = new TelepathyClient.ChatNotification(this);
         this._notification.setUrgency(MessageTray.Urgency.HIGH);
-        this._notificationClickedId = this._notification.connect('clicked', Lang.bind(this, this._flushPendingMessages));
-        this._summaryClickedId = this.connect('summary-item-clicked', Lang.bind(this, this._flushPendingMessages));
+        this._notification.connect('clicked', Lang.bind(this, this._flushPendingMessages));
+        this.connect('summary-item-clicked', Lang.bind(this, this._flushPendingMessages));
         this._notifyTimeoutId = 0;
 
         let proxy = this._gajimExtension.proxy();
@@ -88,8 +88,6 @@ const Source = new Lang.Class({
             proxy.disconnect(this._messageSentId);
             proxy.disconnect(this._newMessageId);
         }
-        this._notification.disconnect(this._notificationClickedId);
-        this.disconnect(this._summaryClickedId);
         this.parent();
     },
 
