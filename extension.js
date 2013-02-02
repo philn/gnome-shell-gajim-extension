@@ -38,13 +38,13 @@ const Source = new Lang.Class({
     Name: 'Source',
     Extends: MessageTray.Source,
 
-    _init: function(gajimClient, accountName, author, initialMessage) {
+    _init: function(gajimExtension, accountName, author, initialMessage) {
         this.parent(author);
         this.isChat = true;
         this._pendingMessagesCount = 0;
 
         this._author = author;
-        this._gajimClient = gajimClient;
+        this._gajimExtension = gajimExtension;
         this._accountName = accountName;
         this._initialMessage = initialMessage;
         this._authorJid = this._author.split('/')[0];
@@ -61,7 +61,7 @@ const Source = new Lang.Class({
         this._summaryClickedId = this.connect('summary-item-clicked', Lang.bind(this, this._flushPendingMessages));
         this._notifyTimeoutId = 0;
 
-        let proxy = this._gajimClient.proxy();
+        let proxy = this._gajimExtension.proxy();
         if (proxy) {
             proxy.list_contactsRemote(this._accountName, Lang.bind(this, this._gotContactList));
             proxy.account_infoRemote(this._accountName, Lang.bind(this, this._gotAccountInfo));
@@ -79,7 +79,7 @@ const Source = new Lang.Class({
     },
 
     destroy: function() {
-        let proxy = this._gajimClient.proxy();
+        let proxy = this._gajimExtension.proxy();
         if (proxy) {
             proxy.disconnect(this._statusChangeId);
             proxy.disconnect(this._contactAbsenceId);
@@ -94,7 +94,7 @@ const Source = new Lang.Class({
 
     _gotAccountInfo: function(result, excp) {
         this._myJid = result['jid'];
-        let proxy = this._gajimClient.proxy();
+        let proxy = this._gajimExtension.proxy();
         if (proxy)
             proxy.contact_infoRemote(this._myJid, Lang.bind(this, this._gotMyContactInfos));
     },
@@ -112,7 +112,7 @@ const Source = new Lang.Class({
             }
         }
 
-        let proxy = this._gajimClient.proxy();
+        let proxy = this._gajimExtension.proxy();
         if (proxy)
             proxy.contact_infoRemote(this._authorJid, Lang.bind(this, this._gotContactInfos));
     },
@@ -125,7 +125,7 @@ const Source = new Lang.Class({
             let mimeType = result['PHOTO']['TYPE'];
             let avatarData = GLib.base64_decode(result['PHOTO']['BINVAL']);
             let sha = result['PHOTO']['SHA'];
-            avatarUri = this._gajimClient.cacheAvatar(mimeType, sha, avatarData);
+            avatarUri = this._gajimExtension.cacheAvatar(mimeType, sha, avatarData);
         }
 
         this._avatarUri = avatarUri;
@@ -269,7 +269,7 @@ const Source = new Lang.Class({
     respond: function(text) {
         let jid = this._author;
         let keyID = ""; // unencrypted.
-        let proxy = this._gajimClient.proxy();
+        let proxy = this._gajimExtension.proxy();
         if (proxy)
             proxy.send_chat_messageRemote(jid, text, keyID, this._accountName);
     },
@@ -312,8 +312,8 @@ const GajimIface = {
 
 let Gajim = DBus.makeProxyClass(GajimIface);
 
-const GajimClient = new Lang.Class({
-    Name: 'GajimClient',
+const GajimExtension = new Lang.Class({
+    Name: 'GajimExtension',
 
     _init: function() {
         this._sources = {};
@@ -384,5 +384,5 @@ const GajimClient = new Lang.Class({
 });
 
 function init() {
-    return new GajimClient();
+    return new GajimExtension();
 }
