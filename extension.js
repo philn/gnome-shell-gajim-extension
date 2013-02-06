@@ -78,8 +78,6 @@ const Source = new Lang.Class({
                                               Lang.bind(this, this._onChatState));
             this._messageSentId = proxy.connect('MessageSent',
                                                 Lang.bind(this, this._messageSent));
-            this._newMessageId = proxy.connect('NewMessage',
-                                               Lang.bind(this, this._messageReceived));
         }
     },
 
@@ -90,7 +88,6 @@ const Source = new Lang.Class({
             proxy.disconnect(this._contactAbsenceId);
             proxy.disconnect(this._chatStateId);
             proxy.disconnect(this._messageSentId);
-            proxy.disconnect(this._newMessageId);
         }
         this.parent();
     },
@@ -228,15 +225,6 @@ const Source = new Lang.Class({
             this.countUpdated();
         }
         this._notification.appendMessage(message, noTimestamp);
-    },
-
-    _messageReceived: function(emitter, data) {
-        let author = data[1][0];
-        let text = data[1][1];
-        if (!text || (author != this._author))
-            return;
-
-        this.handleMessageReceived(text);
     },
 
     handleMessageReceived: function(text) {
