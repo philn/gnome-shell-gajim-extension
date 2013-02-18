@@ -179,14 +179,23 @@ const Source = new Lang.Class({
         return iconBox;
     },
 
+    handleSummaryClick: function() {
+        if (settings.get_boolean("prefer-native-gajim")) {
+            this.open(null);
+            return true;
+        }
+        return false;
+    },
+
     open: function(notification) {
         // Lookup for the messages window and display it. In the case where it's not o
         // opened yet fallback to the roster window.
         let windows = global.get_window_actors();
         for (let i = 0; i < windows.length; i++) {
             let metaWindow = windows[i].metaWindow;
+            let role = metaWindow.get_role();
             if (metaWindow.get_wm_class_instance() == "gajim" &&
-                metaWindow.get_role() == "messages") {
+                (["messages", "roster"].indexOf(role) != -1)) {
                 Main.activateWindow(metaWindow);
                 return;
             }

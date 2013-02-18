@@ -6,5 +6,10 @@
         <summary>Use a new Chat source to initiate a chat from search results</summary>
         <description>Disabling this option means the native Gajim UI will be used to initiate chats from search results</description>
     </key>
+    <key type="b" name="prefer-native-gajim">
+        <default>false</default>
+        <summary>Clicking on the notification icon opens Gajim</summary>
+        <description>If you prefer to use Gajim itself to send messages you should toggle this option on.</description>
+    </key>
   </schema>
 </schemalist>

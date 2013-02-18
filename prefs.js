@@ -33,6 +33,25 @@ function buildPrefsWidget() {
     hbox.add(option);
     vbox.add(hbox);
 
+    let preferGajimHbox = new Gtk.Box({orientation: Gtk.Orientation.HORIZONTAL,
+                                       margin_top: 5});
+
+    let preferGajimLabel = new Gtk.Label({label: 'Clicking on the notification icon opens Gajim',
+                                          xalign: 0 });
+
+    let preferGajimOption = new Gtk.Switch({active: gsettings.get_boolean("prefer-native-gajim")});
+    preferGajimOption.connect('notify::active', function(button) {
+        gsettings.set_boolean("prefer-native-gajim", button.active);
+    });
+
+    let preferGajimHelp = "If you prefer to use Gajim itself to send messages you should toggle this option on.";
+    preferGajimLabel.set_tooltip_text(preferGajimHelp);
+    preferGajimOption.set_tooltip_text(preferGajimHelp);
+
+    preferGajimHbox.pack_start(preferGajimLabel, true, true, 0);
+    preferGajimHbox.add(preferGajimOption);
+    vbox.add(preferGajimHbox);
+
     frame.add(vbox);
     frame.show_all();
     return frame;
