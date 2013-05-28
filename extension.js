@@ -1,7 +1,6 @@
 /* -*- mode: js2; js2-basic-offset: 4; indent-tabs-mode: nil -*- */
 
 const Clutter = imports.gi.Clutter;
-const DBus = imports.dbus;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Lang = imports.lang;
@@ -16,6 +15,8 @@ const Search = imports.ui.search;
 const Shell = imports.gi.Shell;
 const TelepathyClient = imports.ui.components.telepathyClient;
 
+const PopupMenu = imports.ui.popupMenu;
+const NotificationDaemon = imports.ui.notificationDaemon;
 const Utils = imports.misc.extensionUtils.getCurrentExtension().imports.utils;
 
 const settings = Utils.getSettings();
@@ -44,8 +45,37 @@ const Source = new Lang.Class({
     Name: 'Source',
     Extends: MessageTray.Source,
 
+    getSecondaryIcon: function() {
+        let iconName;
+        let presenceType = this._presence;
+
+        switch (presenceType) {
+            case Tp.ConnectionPresenceType.AVAILABLE:
+                iconName = 'user-available';
+                break;
+            case Tp.ConnectionPresenceType.BUSY:
+                iconName = 'user-busy';
+                break;
+            case Tp.ConnectionPresenceType.OFFLINE:
+                iconName = 'user-offline';
+                break;
+            case Tp.ConnectionPresenceType.HIDDEN:
+                iconName = 'user-invisible';
+                break;
+            case Tp.ConnectionPresenceType.AWAY:
+                iconName = 'user-away';
+                break;
+            case Tp.ConnectionPresenceType.EXTENDED_AWAY:
+                iconName = 'user-idle';
+                break;
+            default:
+                iconName = 'user-offline';
+       }
+       return new Gio.ThemedIcon({ name: iconName });
+    },
+
     _init: function(gajimExtension, accountName, author, initialMessage) {
-        this.parent(author);
+        this.parent(accountName, null, null, author);
         this.isChat = true;
         this._pendingMessagesCount = 0;
 
@@ -62,25 +92,98 @@ const Source = new Lang.Class({
 
         this._notification = new TelepathyClient.ChatNotification(this);
         this._notification.setUrgency(MessageTray.Urgency.HIGH);
+        this._notification.connect('expanded', Lang.bind(this, this._flushPendingMessages));
         this._notification.connect('clicked', Lang.bind(this, this._flushPendingMessages));
         this.connect('summary-item-clicked', Lang.bind(this, this._flushPendingMessages));
         this._notifyTimeoutId = 0;
 
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
-            proxy.list_contactsRemote(this._accountName, Lang.bind(this, this._gotContactList));
-            proxy.account_infoRemote(this._accountName, Lang.bind(this, this._gotAccountInfo));
-            this._statusChangeId = proxy.connect('ContactStatus',
-                                                 Lang.bind(this, this._onStatusChange));
-            this._contactAbsenceId = proxy.connect('ContactAbsence',
-                                                   Lang.bind(this, this._onStatusChange));
-            this._chatStateId = proxy.connect('ChatState',
-                                              Lang.bind(this, this._onChatState));
-            this._messageSentId = proxy.connect('MessageSent',
-                                                Lang.bind(this, this._messageSent));
-        }
-    },
+            proxy.list_contactsRemote(accountName, Lang.bind(this,
+				function(result, excp) {
+					for (let contact in result[1])
+						contact = contact.deep_unpack();
+						
+					this._gotContactList(result, excp);
+				}));
+            
+            proxy.contact_infoRemote(this._accountName, Lang.bind(this,
+				function([result], excp) {
+					
+					for (let param in result)
+						result[param] = result[param].deep_unpack();
+						
+					this._gotAccountInfo(result, excp);
+				}));
+            
+            
+            this._statusChangeId = proxy.connectSignal('ContactStatus',	Lang.bind(this,
+				function(emitter, name, [data]) {
+					
+					var status 	 = [new Array(2),new Array(2)];
+					status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+					status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+					
+					this._onStatusChange(emitter, status);
+				}));
+			
+            this._contactAbsenceId = proxy.connectSignal('ContactAbsence', Lang.bind(this,
+				function(emitter, name, [data]) {
+					
+					var status 	 = [new Array(2),new Array(2)];
+					status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+					status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+					
+					this._onStatusChange(emitter, data);
+				}));
+			
+            this._chatStateId = proxy.connectSignal('ChatState', Lang.bind(this,
+				function(emitter, name, [data]) {
 
+					var ndata = [new Array(6),new Array(6)];
+					ndata[1][5] = data[1].get_child_value(5).get_variant().deep_unpack();
+				
+					this._onChatState(emitter, ndata);
+				}));
+			
+            this._messageSentId = proxy.connectSignal('MessageSent', Lang.bind(this,
+ 				function(emitter, name, [data]) {
+					
+					var ndata = [new Array(4),new Array(4)];
+					ndata[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+					ndata[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+					ndata[1][3] = data[1].get_child_value(3).get_variant().deep_unpack();
+
+					this._messageSent(emitter, ndata);
+				}));
+        }
+
+        Main.messageTray.add(this);
+        this.pushNotification(this._notification);
+
+        //this._getLogMessages();
+    },
+    
+    buildRightClickMenu: function() {
+        let item;
+
+        let rightClickMenu = this.parent();
+        item = new PopupMenu.PopupMenuItem('');
+        item.actor.connect('notify::mapped', Lang.bind(this, function() {
+            item.label.set_text(this.isMuted ? _("Unmute") : _("Mute"));
+        }));
+        item.connect('activate', Lang.bind(this, function() {
+            this.setMuted(!this.isMuted);
+            this.emit('done-displaying-content', false);
+        }));
+        rightClickMenu.add(item.actor);
+        return rightClickMenu;
+    },
+    
+     _createPolicy: function() {
+        return new NotificationDaemon.NotificationApplicationPolicy('empathy');
+    },
+       
     destroy: function() {
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
@@ -95,8 +198,16 @@ const Source = new Lang.Class({
     _gotAccountInfo: function(result, excp) {
         this._myJid = result['jid'];
         let proxy = this._gajimExtension.proxy();
-        if (proxy)
-            proxy.contact_infoRemote(this._myJid, Lang.bind(this, this._gotMyContactInfos));
+		if (proxy && this._myJid) {
+			proxy.contact_infoRemote(this._myJid.toString(), Lang.bind(this,
+				function([result], excp) {
+					
+					for (let param in result)
+						result[param] = result[param].deep_unpack();
+					
+					this._gotMyContactInfos(result, excp);
+				}));
+		}
     },
 
     _gotMyContactInfos: function(result, excp) {
@@ -113,13 +224,26 @@ const Source = new Lang.Class({
         }
 
         let proxy = this._gajimExtension.proxy();
-        if (proxy)
-            proxy.contact_infoRemote(this._author, Lang.bind(this, this._gotContactInfos));
+        if (proxy) {
+            proxy.contact_infoRemote(this._author, Lang.bind(this,
+				function([result], excp) {
+					
+					for (let param in result)
+						result[param] = result[param].deep_unpack();
+					
+					result['PHOTO']['BINVAL'] 	= result['PHOTO']['BINVAL'].deep_unpack();
+					result['PHOTO']['TYPE'] 	= result['PHOTO']['TYPE'].deep_unpack();
+					result['PHOTO']['SHA']		= result['PHOTO']['SHA'].deep_unpack();
+					
+					this._gotContactInfos(result, excp);
+				}));
+		}
     },
 
     _gotContactInfos: function(result, excp) {
-        this.title = result['FN'] || result['NICKNAME'] || result['jid'];
 
+        this.title = result['FN'] || result['NICKNAME'] || result['jid'];
+        
         let avatarUri = null;
         if (result['PHOTO']) {
             let mimeType = result['PHOTO']['TYPE'];
@@ -129,16 +253,15 @@ const Source = new Lang.Class({
         }
 
         this._avatarUri = avatarUri;
+        
+                
+        this.iconUpdated();
         this._notification.update(this._notification.title, null,
                                   { customContent: true,
-                                    secondaryIcon: this.createSecondaryIcon(),
-                                    icon: this.createIcon(MessageTray.NOTIFICATION_ICON_SIZE) });
+                                    secondaryGIcon: this.createSecondaryIcon() });
 
         let message = wrappedText(this._initialMessage, this._author, this.title, null, TelepathyClient.NotificationDirection.RECEIVED);
         this._appendMessage(message, false);
-
-        if (!Main.messageTray.contains(this))
-            Main.messageTray.add(this);
 
         this.notify();
     },
@@ -151,32 +274,31 @@ const Source = new Lang.Class({
             let textureCache = St.TextureCache.get_default();
             this._iconBox.child = textureCache.load_uri_async(this._avatarUri, this._iconBox._size, this._iconBox._size);
         } else
-            this._iconBox.child = new St.Icon({ icon_name: 'avatar-default',
-                                                icon_size: this._iconBox._size });
+            this._iconBox.child = new St.Icon({ icon_name: 'avatar-default'});
         return this._iconBox;
     },
 
     createSecondaryIcon: function() {
-        let iconBox = new St.Bin();
-        iconBox.child = new St.Icon({ style_class: 'secondary-icon' });
+        let iconName;
+
         switch (this._presence) {
             case "away":
-                iconBox.child.icon_name = 'user-away';
+                iconName = 'user-away';
                 break;
             case  "offline":
-                iconBox.child.icon_name = 'user-offline';
+                iconName = 'user-offline';
                 break;
             case "online":
-                iconBox.child.icon_name = 'user-available';
+                iconName = 'user-available';
                 break;
             case "dnd":
-                iconBox.child.icon_name = 'user-busy';
+                iconName = 'user-busy';
                 break;
             default:
-                iconBox.child.icon_name = 'user-offline';
+                iconName = 'user-offline';
         }
 
-        return iconBox;
+       return new Gio.ThemedIcon({ name: iconName });
     },
 
     handleSummaryClick: function() {
@@ -215,7 +337,7 @@ const Source = new Lang.Class({
         this._pendingMessagesCount = 0;
         this.countUpdated();
     },
-
+    
     get count() {
         return this._pendingMessagesCount;
     },
@@ -238,7 +360,7 @@ const Source = new Lang.Class({
 
     handleMessageReceived: function(text) {
         let message = wrappedText(text, this._author, this.title, null, TelepathyClient.NotificationDirection.RECEIVED);
-        this._appendMessage(message, false);
+        this._appendMessage(message, true);
 
         // Wait a bit before notifying for the received message, a handler
         // could ack it in the meantime.
@@ -258,7 +380,7 @@ const Source = new Lang.Class({
         let recipient = data[1][0];
         let text = data[1][1];
         let chatstate = data[1][3];
-
+        
         if (text && (recipient == this._author)) {
             let message = wrappedText(text, this._myJid, this._myFullName, null, TelepathyClient.NotificationDirection.SENT);
             this._appendMessage(message, false);
@@ -273,6 +395,7 @@ const Source = new Lang.Class({
     respond: function(text) {
         let jid = this._author;
         let keyID = ""; // unencrypted.
+        
         let proxy = this._gajimExtension.proxy();
         if (proxy)
             proxy.send_chat_messageRemote(jid, text, keyID, this._accountName);
@@ -295,9 +418,10 @@ const Source = new Lang.Class({
         this._presence = presence;
         this._notification.update(this._notification.title, null,
                                   { customContent: true,
-                                    secondaryIcon: this.createSecondaryIcon() });
+                                    secondaryGIcon: this.createSecondaryIcon() });
     }
 });
+
 
 const GajimSearchProvider = new Lang.Class({
     Name: 'GajimSearchProvider',
@@ -453,25 +577,59 @@ const GajimSearchProvider = new Lang.Class({
     }
 });
 
-const GajimIface = {
-    name: 'org.gajim.dbus.RemoteInterface',
-    properties: [],
-    methods: [{ name: 'send_chat_message', inSignature: 'ssss', outSignature: 'b'},
-              { name: 'contact_info', inSignature: 's', outSignature: 'a{sv}'},
-              { name: 'account_info', inSignature: 's', outSignature: 'a{ss}'},
-              { name: 'list_contacts', inSignature: 's', outSignature: 'aa{sv}'},
-              { name: 'list_accounts', inSignature: '', outSignature: 'as'},
-              { name: 'open_chat', inSignature: 'sss', outSignature: 'b'}],
-    signals: [{ name: 'NewMessage', inSignature: 'av' },
-              { name: 'ChatState', inSignature: 'av' },
-              { name: 'ContactStatus', inSignature: 'av' },
-              { name: 'ContactAbsence', inSignature: 'av' },
-              { name: 'MessageSent', inSignature: 'av' },
-              { name: 'Subscribed', inSignature: 'av' },
-              { name: 'Unsubscribed', inSignature: 'av' }]
-};
+const GajimIface = <interface name="org.gajim.dbus.RemoteInterface">
+<method name="send_chat_message">
+	<arg type="s" direction="in" />
+	<arg type="s" direction="in" />
+	<arg type="s" direction="in" />
+	<arg type="s" direction="in" />
+	<arg type="b" direction="out" />
+</method>
+<method name="contact_info">
+	<arg type="s" direction="in" />
+	<arg type="a{sv}" direction="out" />
+</method>
+<method name="account_info">
+	<arg type="s" direction="in" />
+	<arg type="a{ss}" direction="out" />
+</method>
+<method name="list_contacts">
+	<arg type="s" direction="in" />
+	<arg type="aa{sv}" direction="out" />
+</method>
+<method name="list_accounts">
+	<arg type="as" direction="out" />
+</method>
+<method name="open_chat">
+	<arg type="s" direction="in" />
+	<arg type="s" direction="in" />
+	<arg type="s" direction="in" />
+	<arg type="b" direction="out" />
+</method>
+<signal name="NewMessage">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="ChatState">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="ContactStatus">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="ContactAbsence">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="MessageSent">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="Subscribed">
+	<arg type="av" direction="out" />
+</signal>
+<signal name="Unsubscribed">
+	<arg type="av" direction="out" />
+</signal>
+</interface>;
 
-let Gajim = DBus.makeProxyClass(GajimIface);
+let Gajim = Gio.DBusProxy.makeProxyWrapper(GajimIface);
 
 const GajimExtension = new Lang.Class({
     Name: 'GajimExtension',
@@ -493,13 +651,21 @@ const GajimExtension = new Lang.Class({
             GLib.mkdir_with_parents(this._cacheDir, 0x1c0); // 0x1c0 = octal 0700
         }
 
-        this._proxy = new Gajim(DBus.session, 'org.gajim.dbus', '/org/gajim/dbus/RemoteObject');
-        this._newMessageId = this._proxy.connect('NewMessage', Lang.bind(this, this._messageReceived));
+        this._proxy = new Gajim(Gio.DBus.session, 'org.gajim.dbus', '/org/gajim/dbus/RemoteObject');
 
-        if (!this._provider) {
-            this._provider = new GajimSearchProvider(this);
-            Main.overview.addSearchProvider(this._provider);
-        }
+		this._newMessageId = this._proxy.connectSignal('NewMessage', Lang.bind(this,
+			function(proxy, sender, [status]) {
+				
+				this._messageReceived(null,
+							status[1].get_child_value(0).get_variant().deep_unpack(),
+							status[1].get_child_value(1).get_variant().deep_unpack(),
+							status[0].deep_unpack());
+			}));
+			
+		if (!this._provider) {
+			this._provider = new GajimSearchProvider(this);
+			Main.overview.addSearchProvider(this._provider);
+		}
     },
 
     disable: function() {
@@ -520,10 +686,10 @@ const GajimExtension = new Lang.Class({
         this._sources = { };
     },
 
-    _messageReceived : function(emitter, data) {
-        let author = data[1][0].split('/')[0];
-        let message = data[1][1];
-        let account = data[0];
+    _messageReceived : function(emitter, author, message, account) {
+        
+		author	= author.toString().split('/')[0];
+
         let source = this._sources[author];
 
         if (!source) {
@@ -533,8 +699,9 @@ const GajimExtension = new Lang.Class({
                     delete this._sources[author];
                 }));
             this._sources[author] = source;
-        } else
+        } else {
             source.handleMessageReceived(message);
+		}
     },
 
     initiateChat : function(account, recipient) {
@@ -551,6 +718,7 @@ const GajimExtension = new Lang.Class({
     },
 
     cacheAvatar : function(mimeType, sha, avatarData) {
+		
         let ext = mimeType.split('/')[1];
         let file = this._cacheDir + '/' + sha + '.' + ext;
         let uri = GLib.filename_to_uri(file, null);
