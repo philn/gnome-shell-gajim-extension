@@ -231,9 +231,11 @@ const Source = new Lang.Class({
 					for (let param in result)
 						result[param] = result[param].deep_unpack();
 					
-					result['PHOTO']['BINVAL'] 	= result['PHOTO']['BINVAL'].deep_unpack();
-					result['PHOTO']['TYPE'] 	= result['PHOTO']['TYPE'].deep_unpack();
-					result['PHOTO']['SHA']		= result['PHOTO']['SHA'].deep_unpack();
+					if(result['PHOTO']) {
+						result['PHOTO']['BINVAL'] 	= result['PHOTO']['BINVAL'].deep_unpack();
+						result['PHOTO']['TYPE'] 	= result['PHOTO']['TYPE'].deep_unpack();
+						result['PHOTO']['SHA']		= result['PHOTO']['SHA'].deep_unpack();
+					}
 					
 					this._gotContactInfos(result, excp);
 				}));
