@@ -552,9 +552,8 @@ const GajimSearchProvider = new Lang.Class({
         if (id.avatarUri)
             box.add_child(textureCache.load_uri_async(id.avatarUri, size, size));
         else {
-            let icon = textureCache.load_icon_name(null, 'gajim',
-                                                   St.IconType ? St.IconType.FULLCOLOR : size,
-                                                   size);
+            let icon = new St.Icon({ icon_name: 'avatar-default',
+                                     icon_size: size });
             box.add_child(icon);
         }
         return box;
