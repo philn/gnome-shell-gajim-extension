@@ -437,29 +437,47 @@ const GajimSearchProvider = new Lang.Class({
         this._accounts = [];
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
-            proxy.list_accountsRemote(Lang.bind(this, this._gotAccountsList));
-            this._subscribedId = proxy.connect('Subscribed',
-                                               Lang.bind(this, this._onSubscribed));
-            this._unsubscribedId = proxy.connect('Unsubscribed',
-                                                 Lang.bind(this, this._onUnsubscribed));
+            proxy.list_accountsRemote(Lang.bind(this, function(result, exc) {
+                     if (exc)
+                         return;
+                     this._gotAccountsList([result]);
+                 }));
+            this._subscribedId = proxy.connectSignal('Subscribed', Lang.bind(this,
+				function(emitter, name, [data]) {
+
+					var ndata = ['',new Array(1)];
+				        ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
+					ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
+				        this._onSubscribed(emitter, ndata);
+				}));
+            this._unsubscribedId = proxy.connectSignal('Unsubscribed', Lang.bind(this,
+				function(emitter, name, [data]) {
+
+					var ndata = ['',new Array(1)];
+				        ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
+					ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
+				        this._onUnsubscribed(emitter, ndata);
+				}));
         }
     },
 
     destroy: function() {
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
-            proxy.disconnect(this._subscribedId);
-            proxy.disconnect(this._unsubscribedId);
+            proxy.disconnectSignal(this._subscribedId);
+            proxy.disconnectSignal(this._unsubscribedId);
         }
         this.parent();
     },
 
-    _gotAccountsList: function(result, excp) {
+    _gotAccountsList: function(result) {
+        if (!result)
+            return;
         let proxy = this._gajimExtension.proxy();
         for (let i = 0; i < result.length; i++) {
             let accountName = result[i];
             if (proxy)
-                proxy.list_contactsRemote(accountName, Lang.bind(this, function(r, e) {
+                proxy.list_contactsRemote(accountName, Lang.bind(this, function([r], e) {
                                                                      this._gotContactList(accountName, r, e);
                                                                  }));
 
@@ -474,7 +492,7 @@ const GajimSearchProvider = new Lang.Class({
 
         let proxy = this._gajimExtension.proxy();
         if (proxy)
-            proxy.list_contactsRemote(accountName, Lang.bind(this, function(r, e) {
+            proxy.list_contactsRemote(accountName, Lang.bind(this, function([r], e) {
                                                                  this._gotContactList(accountName, r, e);
                                                              }));
     },
@@ -519,16 +537,18 @@ const GajimSearchProvider = new Lang.Class({
             let account = accounts[i];
             for (let j = 0; j < account["contacts"].length; j++) {
                 let contact = account["contacts"][j];
+                let name = contact.name.deep_unpack();
+                let jid = contact.jid.deep_unpack();
                 for (let t = 0; t < terms.length; t++) {
-                    if ((contact["jid"].toLowerCase().indexOf(terms[t]) != -1)
-                        || (contact["name"].toLowerCase().indexOf(terms[t]) != -1)) {
+                    if ((jid.toLowerCase().indexOf(terms[t]) != -1)
+                        || (name.toLowerCase().indexOf(terms[t]) != -1)) {
                         let proxy = this._gajimExtension.proxy();
                         if (proxy) {
-                            proxy.contact_infoRemote(contact["jid"],
-                                                     Lang.bind(this,
-                                                               function (r, e) {
-                                                                   this._gotContactInfos(contact, r, e);
-                                                               }));
+                            proxy.contact_infoRemote(jid, Lang.bind(this,
+                                function([result], excp) {
+                                    unpackPhoto(result);
+                                    this._gotContactInfos(contact, result, excp);
+                            }));
                             contact["account"] = account["name"];
                             results.push(contact);
                         }
@@ -563,7 +583,7 @@ const GajimSearchProvider = new Lang.Class({
 
     getResultMeta: function (id) {
         return { id: id,
-                 name: id.name + ' (' + id.jid + ')',
+                 name: id.name.deep_unpack() + ' (' + id.jid.deep_unpack() + ')',
                  createIcon: Lang.bind(this, function (size) {
                      return this._createIconForId(id, size);
                  })
