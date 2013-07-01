@@ -111,71 +111,57 @@ const Source = new Lang.Class({
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
             proxy.list_contactsRemote(accountName, Lang.bind(this,
-				function(result, excp) {
-					for (let contact in result[1])
-						contact = contact.deep_unpack();
-						
-					this._gotContactList(result, excp);
-				}));
-            
+                function(result, excp) {
+                    for (let contact in result[1])
+                        contact = contact.deep_unpack();
+                        this._gotContactList(result, excp);
+                }));
+
             proxy.contact_infoRemote(this._accountName, Lang.bind(this,
-				function([result], excp) {
-					
-					for (let param in result)
-						result[param] = result[param].deep_unpack();
-						
-					this._gotAccountInfo(result, excp);
-				}));
-            
-            
+                function([result], excp) {
+                    for (let param in result)
+                        result[param] = result[param].deep_unpack();
+                        this._gotAccountInfo(result, excp);
+                }));
+
             this._statusChangeId = proxy.connectSignal('ContactStatus',	Lang.bind(this,
-				function(emitter, name, [data]) {
-					
-					var status 	 = [new Array(2),new Array(2)];
-					status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
-					status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
-					
-					this._onStatusChange(emitter, status);
-				}));
-			
+                function(emitter, name, [data]) {
+                    var status = [new Array(2),new Array(2)];
+                    status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+                    status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+                    this._onStatusChange(emitter, status);
+                }));
+
             this._contactAbsenceId = proxy.connectSignal('ContactAbsence', Lang.bind(this,
-				function(emitter, name, [data]) {
-					
-					var status 	 = [new Array(2),new Array(2)];
-					status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
-					status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
-					
-					this._onStatusChange(emitter, data);
-				}));
-			
+                function(emitter, name, [data]) {
+                    var status = [new Array(2),new Array(2)];
+                    status[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+                    status[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+                    this._onStatusChange(emitter, data);
+                }));
+
             this._chatStateId = proxy.connectSignal('ChatState', Lang.bind(this,
-				function(emitter, name, [data]) {
+                function(emitter, name, [data]) {
+                    var ndata = [new Array(6),new Array(6)];
+                    var lastIndex = data[1].n_children() - 1;
+                    ndata[1][5] = data[1].get_child_value(lastIndex).get_variant().deep_unpack();
+                    this._onChatState(emitter, ndata);
+                }));
 
-					var ndata = [new Array(6),new Array(6)];
-				        var lastIndex = data[1].n_children() - 1;
-					ndata[1][5] = data[1].get_child_value(lastIndex).get_variant().deep_unpack();
-				
-					this._onChatState(emitter, ndata);
-				}));
-			
             this._messageSentId = proxy.connectSignal('MessageSent', Lang.bind(this,
- 				function(emitter, name, [data]) {
-					
-					var ndata = [new Array(4),new Array(4)];
-					ndata[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
-					ndata[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
-					ndata[1][3] = data[1].get_child_value(3).get_variant().deep_unpack();
-
-					this._messageSent(emitter, ndata);
-				}));
+                function(emitter, name, [data]) {
+                    var ndata = [new Array(4),new Array(4)];
+                    ndata[1][0] = data[1].get_child_value(0).get_variant().deep_unpack();
+                    ndata[1][1] = data[1].get_child_value(1).get_variant().deep_unpack();
+                    ndata[1][3] = data[1].get_child_value(3).get_variant().deep_unpack();
+                    this._messageSent(emitter, ndata);
+                }));
         }
 
         Main.messageTray.add(this);
         this.pushNotification(this._notification);
-
-        //this._getLogMessages();
     },
-    
+
     buildRightClickMenu: function() {
         let item;
 
@@ -191,11 +177,11 @@ const Source = new Lang.Class({
         rightClickMenu.add(item.actor);
         return rightClickMenu;
     },
-    
+
      _createPolicy: function() {
         return new NotificationDaemon.NotificationApplicationPolicy('empathy');
     },
-       
+
     destroy: function() {
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
@@ -210,16 +196,15 @@ const Source = new Lang.Class({
     _gotAccountInfo: function(result, excp) {
         this._myJid = result['jid'];
         let proxy = this._gajimExtension.proxy();
-		if (proxy && this._myJid) {
-			proxy.contact_infoRemote(this._myJid.toString(), Lang.bind(this,
-				function([result], excp) {
-					
-					for (let param in result)
-						result[param] = result[param].deep_unpack();
-					
-					this._gotMyContactInfos(result, excp);
-				}));
-		}
+        if (proxy && this._myJid) {
+            proxy.contact_infoRemote(this._myJid.toString(), Lang.bind(this,
+                function([result], excp) {
+                    for (let param in result)
+                         result[param] = result[param].deep_unpack();
+
+                    this._gotMyContactInfos(result, excp);
+            }));
+        }
     },
 
     _gotMyContactInfos: function(result, excp) {
@@ -248,7 +233,7 @@ const Source = new Lang.Class({
     _gotContactInfos: function(result, excp) {
 
         this.title = result['FN'] || result['NICKNAME'] || result['jid'];
-        
+
         let avatarUri = null;
         if (result['PHOTO']) {
             let mimeType = result['PHOTO']['TYPE'];
@@ -258,8 +243,6 @@ const Source = new Lang.Class({
         }
 
         this._avatarUri = avatarUri;
-        
-                
         this.iconUpdated();
         this._notification.update(this._notification.title, null,
                                   { customContent: true,
@@ -342,7 +325,7 @@ const Source = new Lang.Class({
         this._pendingMessagesCount = 0;
         this.countUpdated();
     },
-    
+
     get count() {
         return this._pendingMessagesCount;
     },
@@ -385,7 +368,7 @@ const Source = new Lang.Class({
         let recipient = data[1][0];
         let text = data[1][1];
         let chatstate = data[1][3];
-        
+
         if (text && (recipient == this._author)) {
             let message = wrappedText(text, this._myJid, this._myFullName, null, TelepathyClient.NotificationDirection.SENT);
             this._appendMessage(message, false);
@@ -400,7 +383,7 @@ const Source = new Lang.Class({
     respond: function(text) {
         let jid = this._author;
         let keyID = ""; // unencrypted.
-        
+
         let proxy = this._gajimExtension.proxy();
         if (proxy)
             proxy.send_chat_messageRemote(jid, text, keyID, this._accountName);
@@ -443,21 +426,19 @@ const GajimSearchProvider = new Lang.Class({
                      this._gotAccountsList([result]);
                  }));
             this._subscribedId = proxy.connectSignal('Subscribed', Lang.bind(this,
-				function(emitter, name, [data]) {
-
-					var ndata = ['',new Array(1)];
-				        ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
-					ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
-				        this._onSubscribed(emitter, ndata);
-				}));
+                function(emitter, name, [data]) {
+                    var ndata = ['',new Array(1)];
+                    ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
+                    ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
+                    this._onSubscribed(emitter, ndata);
+                }));
             this._unsubscribedId = proxy.connectSignal('Unsubscribed', Lang.bind(this,
-				function(emitter, name, [data]) {
-
-					var ndata = ['',new Array(1)];
-				        ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
-					ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
-				        this._onUnsubscribed(emitter, ndata);
-				}));
+                function(emitter, name, [data]) {
+                    var ndata = ['',new Array(1)];
+                    ndata[0] = data.get_child_value(0).get_variant().deep_unpack();
+                    ndata[1][0] = data.get_child_value(1).get_variant().deep_unpack();
+                    this._onUnsubscribed(emitter, ndata);
+                }));
         }
     },
 
@@ -607,53 +588,53 @@ const GajimSearchProvider = new Lang.Class({
 
 const GajimIface = <interface name="org.gajim.dbus.RemoteInterface">
 <method name="send_chat_message">
-	<arg type="s" direction="in" />
-	<arg type="s" direction="in" />
-	<arg type="s" direction="in" />
-	<arg type="s" direction="in" />
-	<arg type="b" direction="out" />
+    <arg type="s" direction="in" />
+    <arg type="s" direction="in" />
+    <arg type="s" direction="in" />
+    <arg type="s" direction="in" />
+    <arg type="b" direction="out" />
 </method>
 <method name="contact_info">
-	<arg type="s" direction="in" />
-	<arg type="a{sv}" direction="out" />
+    <arg type="s" direction="in" />
+    <arg type="a{sv}" direction="out" />
 </method>
 <method name="account_info">
-	<arg type="s" direction="in" />
-	<arg type="a{ss}" direction="out" />
+    <arg type="s" direction="in" />
+    <arg type="a{ss}" direction="out" />
 </method>
 <method name="list_contacts">
-	<arg type="s" direction="in" />
-	<arg type="aa{sv}" direction="out" />
+    <arg type="s" direction="in" />
+    <arg type="aa{sv}" direction="out" />
 </method>
 <method name="list_accounts">
-	<arg type="as" direction="out" />
+    <arg type="as" direction="out" />
 </method>
 <method name="open_chat">
-	<arg type="s" direction="in" />
-	<arg type="s" direction="in" />
-	<arg type="s" direction="in" />
-	<arg type="b" direction="out" />
+    <arg type="s" direction="in" />
+    <arg type="s" direction="in" />
+    <arg type="s" direction="in" />
+    <arg type="b" direction="out" />
 </method>
 <signal name="NewMessage">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="ChatState">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="ContactStatus">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="ContactAbsence">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="MessageSent">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="Subscribed">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 <signal name="Unsubscribed">
-	<arg type="av" direction="out" />
+    <arg type="av" direction="out" />
 </signal>
 </interface>;
 
@@ -681,19 +662,18 @@ const GajimExtension = new Lang.Class({
 
         this._proxy = new Gajim(Gio.DBus.session, 'org.gajim.dbus', '/org/gajim/dbus/RemoteObject');
 
-		this._newMessageId = this._proxy.connectSignal('NewMessage', Lang.bind(this,
-			function(proxy, sender, [status]) {
-				
-				this._messageReceived(null,
-							status[1].get_child_value(0).get_variant().deep_unpack(),
-							status[1].get_child_value(1).get_variant().deep_unpack(),
-							status[0].deep_unpack());
-			}));
-			
-		if (!this._provider) {
-			this._provider = new GajimSearchProvider(this);
-			Main.overview.addSearchProvider(this._provider);
-		}
+        this._newMessageId = this._proxy.connectSignal('NewMessage', Lang.bind(this,
+            function(proxy, sender, [status]) {
+                this._messageReceived(null,
+                                      status[1].get_child_value(0).get_variant().deep_unpack(),
+                                      status[1].get_child_value(1).get_variant().deep_unpack(),
+                                      status[0].deep_unpack());
+            }));
+
+        if (!this._provider) {
+            this._provider = new GajimSearchProvider(this);
+            Main.overview.addSearchProvider(this._provider);
+        }
     },
 
     disable: function() {
@@ -715,8 +695,7 @@ const GajimExtension = new Lang.Class({
     },
 
     _messageReceived : function(emitter, author, message, account) {
-        
-		author	= author.toString().split('/')[0];
+        author = author.toString().split('/')[0];
 
         let source = this._sources[author];
 
@@ -729,7 +708,7 @@ const GajimExtension = new Lang.Class({
             this._sources[author] = source;
         } else {
             source.handleMessageReceived(message);
-		}
+        }
     },
 
     initiateChat : function(account, recipient) {
@@ -746,7 +725,6 @@ const GajimExtension = new Lang.Class({
     },
 
     cacheAvatar : function(mimeType, sha, avatarData) {
-		
         let ext = mimeType.split('/')[1];
         let file = this._cacheDir + '/' + sha + '.' + ext;
         let uri = GLib.filename_to_uri(file, null);
