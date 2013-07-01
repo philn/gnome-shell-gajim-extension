@@ -567,6 +567,11 @@ const GajimSearchProvider = new Lang.Class({
                };
     },
 
+    createResultActor: function (resultMeta, terms) {
+        // Fallback to createIcon.
+        return null;
+    },
+
     getResultMetas: function(ids, callback) {
         let metas = ids.map(this.getResultMeta, this);
         callback(metas);
