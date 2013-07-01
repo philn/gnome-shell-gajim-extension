@@ -427,7 +427,6 @@ const Source = new Lang.Class({
 
 const GajimSearchProvider = new Lang.Class({
     Name: 'GajimSearchProvider',
-    Extends: Search.SearchProvider,
 
     _init: function (gajimExtension) {
         this.parent('GAJIM CONTACTS');
