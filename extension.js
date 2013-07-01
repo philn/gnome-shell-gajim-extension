@@ -152,7 +152,8 @@ const Source = new Lang.Class({
 				function(emitter, name, [data]) {
 
 					var ndata = [new Array(6),new Array(6)];
-					ndata[1][5] = data[1].get_child_value(5).get_variant().deep_unpack();
+				        var lastIndex = data[1].n_children() - 1;
+					ndata[1][5] = data[1].get_child_value(lastIndex).get_variant().deep_unpack();
 				
 					this._onChatState(emitter, ndata);
 				}));
