@@ -187,10 +187,10 @@ const Source = new Lang.Class({
     destroy: function() {
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
-            proxy.disconnect(this._statusChangeId);
-            proxy.disconnect(this._contactAbsenceId);
-            proxy.disconnect(this._chatStateId);
-            proxy.disconnect(this._messageSentId);
+            proxy.disconnectSignal(this._statusChangeId);
+            proxy.disconnectSignal(this._contactAbsenceId);
+            proxy.disconnectSignal(this._chatStateId);
+            proxy.disconnectSignal(this._messageSentId);
         }
         this.parent();
     },
@@ -677,7 +677,7 @@ const GajimExtension = new Lang.Class({
         }
 
         if (this._newMessageId) {
-            this._proxy.disconnect(this._newMessageId);
+            this._proxy.disconnectSignal(this._newMessageId);
             this._newMessageId = 0;
         }
         this._proxy = null;
