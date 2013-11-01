@@ -431,7 +431,7 @@ const GajimSearchProvider = new Lang.Class({
     Name: 'GajimSearchProvider',
 
     _init: function (gajimExtension) {
-        this.parent('GAJIM CONTACTS');
+        this.id = "gajim-contacts";
         this._gajimExtension = gajimExtension;
         this._accounts = [];
         let proxy = this._gajimExtension.proxy();
@@ -439,7 +439,8 @@ const GajimSearchProvider = new Lang.Class({
             proxy.list_accountsRemote(Lang.bind(this, function(result, exc) {
                      if (exc)
                          return;
-                     this._gotAccountsList([result]);
+                     [accounts] = result;
+                     this._gotAccountsList(accounts);
                  }));
             this._subscribedId = proxy.connectSignal('Subscribed', Lang.bind(this,
                 function(emitter, name, [data]) {
