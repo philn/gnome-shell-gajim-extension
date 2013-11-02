@@ -101,8 +101,8 @@ const Source = new Lang.Class({
        return new Gio.ThemedIcon({ name: iconName });
     },
 
-    _init: function(gajimExtension, accountName, author, initialMessage) {
-        this.parent(accountName, null, null, author);
+    _init: function(gajimExtension, accountName, author, initialMessage, avatarUri) {
+        this.parent(accountName, avatarUri);
         this.isChat = true;
         this._pendingMessagesCount = 0;
 
@@ -127,17 +127,15 @@ const Source = new Lang.Class({
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
             proxy.list_contactsRemote(accountName, Lang.bind(this,
-                function(result, excp) {
-                    for (let contact in result[1])
-                        contact = contact.deep_unpack();
-                        this._gotContactList(result, excp);
+                function([result], excp) {
+                    this._gotContactList(result, excp);
                 }));
 
             proxy.contact_infoRemote(this._accountName, Lang.bind(this,
                 function([result], excp) {
                     for (let param in result)
                         result[param] = result[param].deep_unpack();
-                        this._gotAccountInfo(result, excp);
+                    this._gotAccountInfo(result, excp);
                 }));
 
             this._statusChangeId = proxy.connectSignal('ContactStatus',	Lang.bind(this,
@@ -599,7 +597,8 @@ const GajimSearchProvider = new Lang.Class({
     },
 
     activateResult: function(id) {
-        this._gajimExtension.initiateChat(id.account, id.jid);
+        let recipient = id.jid.deep_unpack();
+        this._gajimExtension.initiateChat(id.account, recipient, id.avatarUri);
     }
 });
 
@@ -717,7 +716,7 @@ const GajimExtension = new Lang.Class({
         let source = this._sources[author];
 
         if (!source) {
-            source = new Source(this, account, author, message);
+            source = new Source(this, account, author, message, null);
             source.connect('destroy', Lang.bind(this,
                 function() {
                     delete this._sources[author];
@@ -728,9 +727,9 @@ const GajimExtension = new Lang.Class({
         }
     },
 
-    initiateChat : function(account, recipient) {
+    initiateChat : function(account, recipient, avatarUri) {
         if (settings.get_boolean("chat-initiator")) {
-            let source = new Source(this, account, recipient, "");
+            let source = new Source(this, account, recipient, "", avatarUri);
             source.connect('destroy', Lang.bind(this,
                                                 function() {
                                                     delete this._sources[recipient];
