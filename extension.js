@@ -431,6 +431,19 @@ const GajimSearchProvider = new Lang.Class({
     _init: function (gajimExtension) {
         this.id = "gajim-contacts";
         this._gajimExtension = gajimExtension;
+        this.reset();
+    },
+
+    enable: function() {
+        Main.overview.addSearchProvider(this);
+    },
+
+    disable: function() {
+        Main.overview.removeSearchProvider(this);
+    },
+
+    reset: function() {
+        this.enable();
         this._accounts = [];
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
@@ -677,6 +690,23 @@ const GajimExtension = new Lang.Class({
         }
 
         this._proxy = new Gajim(Gio.DBus.session, 'org.gajim.dbus', '/org/gajim/dbus/RemoteObject');
+        this._proxy.extension = this;
+
+        if (!this._provider) {
+            this._provider = new GajimSearchProvider(this);
+        } else {
+            this._provider.reset();
+        }
+
+        this._proxy.connect('notify::g-name-owner', function(proxy) {
+            let extension = proxy.extension;
+            extension._sources = { };
+            if (proxy.g_name_owner) {
+                extension._provider.reset();
+            } else {
+                extension._provider.disable();
+            }
+        });
 
         this._newMessageId = this._proxy.connectSignal('NewMessage', Lang.bind(this,
             function(proxy, sender, [status]) {
@@ -686,15 +716,11 @@ const GajimExtension = new Lang.Class({
                                       status[0].deep_unpack());
             }));
 
-        if (!this._provider) {
-            this._provider = new GajimSearchProvider(this);
-            Main.overview.addSearchProvider(this._provider);
-        }
     },
 
     disable: function() {
         if (this._provider) {
-            Main.overview.removeSearchProvider(this._provider);
+            this._provider.disable();
             this._provider = null;
         }
 
