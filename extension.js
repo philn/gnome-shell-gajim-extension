@@ -116,6 +116,7 @@ const Source = new Lang.Class({
         this._avatarUri = null;
         this._myJid = null;
         this._myFullName = null;
+        this._lastSentMessage = null;
 
         this._notification = new TelepathyClient.ChatNotification(this);
         this._notification.setUrgency(MessageTray.Urgency.HIGH);
@@ -384,6 +385,11 @@ const Source = new Lang.Class({
         let chatstate = data[1][3];
 
         if (text && (recipient == this._author)) {
+            if ((text.indexOf("?OTR") == 0) && this._lastSentMessage) {
+                text = this._lastSentMessage;
+                this._lastSentMessage = null;
+            }
+
             let message = wrappedText(text, this._myJid, this._myFullName, null, TelepathyClient.NotificationDirection.SENT);
             this._appendMessage(message, false);
         } else if (chatstate == 'gone')
@@ -395,6 +401,7 @@ const Source = new Lang.Class({
     },
 
     respond: function(text) {
+        this._lastSentMessage = text;
         let jid = this._author;
         let keyID = ""; // unencrypted.
 
