@@ -72,35 +72,6 @@ const Source = new Lang.Class({
     Name: 'Source',
     Extends: MessageTray.Source,
 
-    getSecondaryIcon: function() {
-        let iconName;
-        let presenceType = this._presence;
-
-        switch (presenceType) {
-            case Tp.ConnectionPresenceType.AVAILABLE:
-                iconName = 'user-available';
-                break;
-            case Tp.ConnectionPresenceType.BUSY:
-                iconName = 'user-busy';
-                break;
-            case Tp.ConnectionPresenceType.OFFLINE:
-                iconName = 'user-offline';
-                break;
-            case Tp.ConnectionPresenceType.HIDDEN:
-                iconName = 'user-invisible';
-                break;
-            case Tp.ConnectionPresenceType.AWAY:
-                iconName = 'user-away';
-                break;
-            case Tp.ConnectionPresenceType.EXTENDED_AWAY:
-                iconName = 'user-idle';
-                break;
-            default:
-                iconName = 'user-offline';
-       }
-       return new Gio.ThemedIcon({ name: iconName });
-    },
-
     _init: function(gajimExtension, accountName, author, initialMessage, avatarUri) {
         this.parent(accountName, avatarUri);
         this.isChat = true;
@@ -261,7 +232,7 @@ const Source = new Lang.Class({
         this.iconUpdated();
         this._notification.update(this._notification.title, null,
                                   { customContent: true,
-                                    secondaryGIcon: this.createSecondaryIcon() });
+                                    secondaryGIcon: this.getSecondaryIcon() });
 
         let message = wrappedText(this._initialMessage, this._author, this.title, null, TelepathyClient.NotificationDirection.RECEIVED);
         this._appendMessage(message, false);
@@ -281,26 +252,37 @@ const Source = new Lang.Class({
         return this._iconBox;
     },
 
-    createSecondaryIcon: function() {
+    getSecondaryIcon: function() {
         let iconName;
 
         switch (this._presence) {
-            case "away":
-                iconName = 'user-away';
-                break;
-            case  "offline":
-                iconName = 'user-offline';
-                break;
+            case Tp.ConnectionPresenceType.AVAILABLE:
             case "online":
                 iconName = 'user-available';
                 break;
+            case Tp.ConnectionPresenceType.BUSY:
             case "dnd":
                 iconName = 'user-busy';
                 break;
+            case Tp.ConnectionPresenceType.OFFLINE:
+            case "offline":
+                iconName = 'user-offline';
+                break;
+            case Tp.ConnectionPresenceType.HIDDEN:
+            case "invisible":
+                iconName = 'user-invisible';
+                break;
+            case Tp.ConnectionPresenceType.AWAY:
+            case "away":
+                iconName = 'user-away';
+                break;
+            case Tp.ConnectionPresenceType.EXTENDED_AWAY:
+            case "xa":
+                iconName = 'user-idle';
+                break;
             default:
                 iconName = 'user-offline';
-        }
-
+       }
        return new Gio.ThemedIcon({ name: iconName });
     },
 
@@ -427,7 +409,7 @@ const Source = new Lang.Class({
         this._presence = presence;
         this._notification.update(this._notification.title, null,
                                   { customContent: true,
-                                    secondaryGIcon: this.createSecondaryIcon() });
+                                    secondaryGIcon: this.getSecondaryIcon() });
     }
 });
 
