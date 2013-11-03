@@ -16,15 +16,23 @@
 
 import os
 import json
+import zipfile
+import glob
 
 def exec_command(cmd):
     print cmd
     os.system(cmd)
 
 version = json.loads(open("metadata.json").read())['version']
-contents = ["extension.js", "metadata.json", "prefs.js", "utils.js", "schemas/*"]
 
 exec_command("glib-compile-schemas schemas")
-exec_command("zip gajim@base-art.net-%d.zip %s" % (version, " ".join(contents)))
+
+contents = ["COPYING", "README.rst", "extension.js", "metadata.json", "prefs.js", "utils.js"] + glob.glob("schemas/*")
+
+with zipfile.ZipFile("gajim@base-art.net-%d.zip" % version, 'w') as myzip:
+    for file in contents:
+        print "Packing ", file
+        myzip.write(file)
+
 exec_command("git tag %d" % version)
 
