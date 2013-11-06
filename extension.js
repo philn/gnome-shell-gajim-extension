@@ -290,6 +290,11 @@ const Source = new Lang.Class({
     },
 
     handleSummaryClick: function() {
+        // Always let right click pass through.
+        let event = Clutter.get_current_event();
+        if (event.get_button() == 3)
+            return false;
+
         if (settings.get_boolean("prefer-native-gajim")) {
             this.open(null);
             return true;
