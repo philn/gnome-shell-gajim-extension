@@ -169,6 +169,8 @@ const Source = new Lang.Class({
     },
 
     destroy: function() {
+        if (!this._gajimExtension)
+            return;
         let proxy = this._gajimExtension.proxy();
         if (proxy) {
             proxy.disconnectSignal(this._statusChangeId);
@@ -176,6 +178,7 @@ const Source = new Lang.Class({
             proxy.disconnectSignal(this._chatStateId);
             proxy.disconnectSignal(this._messageSentId);
         }
+        this._gajimExtension = null;
         this.parent();
     },
 
