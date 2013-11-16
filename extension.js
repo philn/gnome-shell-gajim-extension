@@ -73,7 +73,7 @@ const Source = new Lang.Class({
     Extends: MessageTray.Source,
 
     _init: function(gajimExtension, accountName, author, initialMessage, avatarUri) {
-        this.parent(accountName, avatarUri);
+        this.parent(accountName);
         this.isChat = true;
         this._pendingMessagesCount = 0;
 
@@ -81,6 +81,7 @@ const Source = new Lang.Class({
         this._gajimExtension = gajimExtension;
         this._accountName = accountName;
         this._initialMessage = initialMessage;
+        this._avatarUri = avatarUri;
 
         // These are set from various DBus calls results.
         this._presence = "online";
@@ -165,7 +166,7 @@ const Source = new Lang.Class({
     },
 
      _createPolicy: function() {
-        return new NotificationDaemon.NotificationApplicationPolicy('empathy');
+        return new MessageTray.NotificationApplicationPolicy('empathy');
     },
 
     destroy: function() {
@@ -243,16 +244,12 @@ const Source = new Lang.Class({
         this.notify();
     },
 
-    createIcon: function(size) {
-        this._iconBox = new St.Bin({ style_class: 'avatar-box' });
-        this._iconBox._size = size;
-
+    getIcon: function() {
         if (this._avatarUri) {
-            let textureCache = St.TextureCache.get_default();
-            this._iconBox.child = textureCache.load_uri_async(this._avatarUri, this._iconBox._size, this._iconBox._size);
-        } else
-            this._iconBox.child = new St.Icon({ icon_name: 'avatar-default'});
-        return this._iconBox;
+            return new Gio.FileIcon({ file: Gio.File.new_for_uri(this._avatarUri) });
+        } else {
+            return new Gio.ThemedIcon({ name: 'avatar-default' });
+        }
     },
 
     getSecondaryIcon: function() {
@@ -563,7 +560,11 @@ const GajimSearchProvider = new Lang.Class({
             }
         }
 
-        this.searchSystem.pushResults(this, results);
+        this.searchSystem.setResults(this, results);
+    },
+
+    filterResults: function(results) {
+        return results;
     },
 
     getInitialResultSet: function(terms) {
@@ -596,7 +597,7 @@ const GajimSearchProvider = new Lang.Class({
                };
     },
 
-    createResultActor: function (resultMeta, terms) {
+    createResultObject: function (resultMeta, terms) {
         // Fallback to createIcon.
         return null;
     },
