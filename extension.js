@@ -429,11 +429,15 @@ const GajimSearchProvider = new Lang.Class({
     },
 
     enable: function() {
-        Main.overview.addSearchProvider(this);
+        let searchSystem = Main.overview._controls.viewSelector._searchResults._searchSystem;
+        searchSystem.addProvider(this);
     },
 
     disable: function() {
-        Main.overview.removeSearchProvider(this);
+        let searchSystem = Main.overview._controls.viewSelector._searchResults._searchSystem;
+        let index = searchSystem._providers.indexOf(this);
+        searchSystem._providers.splice(index, 1);
+        searchSystem.emit('providers-changed');
     },
 
     reset: function() {
@@ -534,7 +538,12 @@ const GajimSearchProvider = new Lang.Class({
         }
     },
 
-    _getResultSet: function (accounts, terms) {
+    filterResults: function(results, maxNumber) {
+        return results;
+    },
+
+    getInitialResultSet: function(terms, callback, cancellable) {
+        let accounts = this._accounts;
         let results = [];
         for (let i = 0; i < accounts.length; i++) {
             let account = accounts[i];
@@ -542,68 +551,58 @@ const GajimSearchProvider = new Lang.Class({
                 let contact = account["contacts"][j];
                 let name = contact.name.deep_unpack();
                 let jid = contact.jid.deep_unpack();
-                for (let t = 0; t < terms.length; t++) {
-                    if ((jid.toLowerCase().indexOf(terms[t]) != -1)
-                        || (name.toLowerCase().indexOf(terms[t]) != -1)) {
-                        let proxy = this._gajimExtension.proxy();
-                        if (proxy) {
-                            proxy.contact_infoRemote(jid, Lang.bind(this,
-                                function([result], excp) {
-                                    unpackPhoto(result);
-                                    this._gotContactInfos(contact, result, excp);
-                            }));
-                            contact["account"] = account["name"];
-                            results.push(contact);
-                        }
+                if ((jid.toLowerCase().indexOf(terms) != -1)
+                    || (name.toLowerCase().indexOf(terms) != -1)) {
+                    let proxy = this._gajimExtension.proxy();
+                    if (proxy) {
+                        let [result] = proxy.contact_infoSync(jid);
+                        unpackPhoto(result);
+                        this._gotContactInfos(contact, result, null);
+                        contact["account"] = account["name"];
+                        results.push(contact);
                     }
                 }
             }
         }
-
-        this.searchSystem.setResults(this, results);
+        callback(results);
     },
 
-    filterResults: function(results) {
-        return results;
-    },
-
-    getInitialResultSet: function(terms) {
-        return this._getResultSet(this._accounts, terms);
-    },
-
-    getSubsearchResultSet: function(previousResults, newTerms) {
-        return this._getResultSet(this._accounts, newTerms);
+    getSubsearchResultSet: function(previousResults, terms, callback, cancellable) {
+        this.getInitialResultSet(terms, callback, cancellable);
     },
 
     _createIconForId: function (id, size) {
-        let box = new Clutter.Box();
-        let textureCache = St.TextureCache.get_default();
-        if (id.avatarUri)
-            box.add_child(textureCache.load_uri_async(id.avatarUri, size, size));
-        else {
-            let icon = new St.Icon({ icon_name: 'avatar-default',
-                                     icon_size: size });
-            box.add_child(icon);
+        let box = new St.Widget({layout_manager: new Clutter.BinLayout });
+        if (id.avatarUri) {
+            box.add_actor(new St.Icon({
+                              gicon: new Gio.FileIcon({
+                                  file: Gio.File.new_for_uri(id.avatarUri)
+                              }),
+                              icon_size: size
+                          }));
+        } else {
+            let gicon = new Gio.ThemedIcon({ name: 'avatar-default' });
+            let icon = new St.Icon({ gicon: gicon,
+                                    icon_size: size });
+            box.add_actor(icon);
         }
         return box;
     },
 
-    getResultMeta: function (id) {
-        return { id: id,
-                 name: id.name.deep_unpack() + ' (' + id.jid.deep_unpack() + ')',
-                 createIcon: Lang.bind(this, function (size) {
-                     return this._createIconForId(id, size);
-                 })
-               };
-    },
-
-    createResultObject: function (resultMeta, terms) {
-        // Fallback to createIcon.
+    createResultObject: function (metaInfo) {
         return null;
     },
 
-    getResultMetas: function(ids, callback) {
-        let metas = ids.map(this.getResultMeta, this);
+    getResultMetas: function(ids, callback, cancellable) {
+        let metas = [];
+        for (let i = 0; i < ids.length; i++) {
+            let id = ids[i];
+            metas.push({ 'id': id,
+                         'name': id.name.deep_unpack() + ' (' + id.jid.deep_unpack() + ')',
+                         'createIcon': Lang.bind(this, function (size) {
+                             return this._createIconForId(id, size);
+                       })});
+        }
         callback(metas);
     },
 
@@ -613,57 +612,59 @@ const GajimSearchProvider = new Lang.Class({
     }
 });
 
-const GajimIface = <interface name="org.gajim.dbus.RemoteInterface">
-<method name="send_chat_message">
-    <arg type="s" direction="in" />
-    <arg type="s" direction="in" />
-    <arg type="s" direction="in" />
-    <arg type="s" direction="in" />
-    <arg type="b" direction="out" />
-</method>
-<method name="contact_info">
-    <arg type="s" direction="in" />
-    <arg type="a{sv}" direction="out" />
-</method>
-<method name="account_info">
-    <arg type="s" direction="in" />
-    <arg type="a{ss}" direction="out" />
-</method>
-<method name="list_contacts">
-    <arg type="s" direction="in" />
-    <arg type="aa{sv}" direction="out" />
-</method>
-<method name="list_accounts">
-    <arg type="as" direction="out" />
-</method>
-<method name="open_chat">
-    <arg type="s" direction="in" />
-    <arg type="s" direction="in" />
-    <arg type="s" direction="in" />
-    <arg type="b" direction="out" />
-</method>
-<signal name="NewMessage">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="ChatState">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="ContactStatus">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="ContactAbsence">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="MessageSent">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="Subscribed">
-    <arg type="av" direction="out" />
-</signal>
-<signal name="Unsubscribed">
-    <arg type="av" direction="out" />
-</signal>
-</interface>;
+const GajimIface = '<node> \
+<interface name="org.gajim.dbus.RemoteInterface"> \
+<method name="send_chat_message"> \
+    <arg type="s" direction="in" /> \
+    <arg type="s" direction="in" /> \
+    <arg type="s" direction="in" /> \
+    <arg type="s" direction="in" /> \
+    <arg type="b" direction="out" /> \
+</method> \
+<method name="contact_info"> \
+    <arg type="s" direction="in" /> \
+    <arg type="a{sv}" direction="out" /> \
+</method> \
+<method name="account_info"> \
+    <arg type="s" direction="in" /> \
+    <arg type="a{ss}" direction="out" /> \
+</method> \
+<method name="list_contacts"> \
+    <arg type="s" direction="in" /> \
+    <arg type="aa{sv}" direction="out" /> \
+</method> \
+<method name="list_accounts"> \
+    <arg type="as" direction="out" /> \
+</method> \
+<method name="open_chat"> \
+    <arg type="s" direction="in" /> \
+    <arg type="s" direction="in" /> \
+    <arg type="s" direction="in" /> \
+    <arg type="b" direction="out" /> \
+</method> \
+<signal name="NewMessage"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="ChatState"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="ContactStatus"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="ContactAbsence"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="MessageSent"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="Subscribed"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+<signal name="Unsubscribed"> \
+    <arg type="av" direction="out" /> \
+</signal> \
+</interface> \
+</node>';
 
 let Gajim = Gio.DBusProxy.makeProxyWrapper(GajimIface);
 
