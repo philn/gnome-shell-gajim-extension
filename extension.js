@@ -429,15 +429,13 @@ const GajimSearchProvider = new Lang.Class({
     },
 
     enable: function() {
-        let searchSystem = Main.overview._controls.viewSelector._searchResults._searchSystem;
-        searchSystem.addProvider(this);
+        let searchSystem = Main.overview._controls.viewSelector._searchResults;
+        searchSystem._registerProvider(this);
     },
 
     disable: function() {
-        let searchSystem = Main.overview._controls.viewSelector._searchResults._searchSystem;
-        let index = searchSystem._providers.indexOf(this);
-        searchSystem._providers.splice(index, 1);
-        searchSystem.emit('providers-changed');
+        let searchSystem = Main.overview._controls.viewSelector._searchResults;
+        searchSystem._unregisterProvider(this);
     },
 
     reset: function() {

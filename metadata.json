@@ -2,7 +2,7 @@
  "uuid": "gajim@base-art.net",
  "name": "Gajim IM integration",
  "description": "Displays Gajim incoming chats as notifications in the Shell message tray. A SearchProvider is also available to query the Gajim contacts directly from the Shell.",
- "shell-version": [ "3.12" ],
+ "shell-version": [ "3.14" ],
  "url": "http://github.com/philn/gnome-shell-gajim-extension",
  "version": 9
 }
