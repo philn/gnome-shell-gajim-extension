@@ -92,6 +92,7 @@ const Source = new Lang.Class({
 
         this._notification = new TelepathyClient.ChatNotification(this);
         this._notification.setUrgency(MessageTray.Urgency.HIGH);
+        this._notification.connect('activated', Lang.bind(this, this.open));
         this._notification.connect('expanded', Lang.bind(this, this._flushPendingMessages));
         this._notification.connect('clicked', Lang.bind(this, this._flushPendingMessages));
         this.connect('summary-item-clicked', Lang.bind(this, this._flushPendingMessages));
@@ -149,20 +150,15 @@ const Source = new Lang.Class({
         this.pushNotification(this._notification);
     },
 
-    buildRightClickMenu: function() {
-        let item;
+    createBanner: function() {
+        this._banner = new TelepathyClient.ChatNotificationBanner(this._notification);
 
-        let rightClickMenu = this.parent();
-        item = new PopupMenu.PopupMenuItem('');
-        item.actor.connect('notify::mapped', Lang.bind(this, function() {
-            item.label.set_text(this.isMuted ? _("Unmute") : _("Mute"));
-        }));
-        item.connect('activate', Lang.bind(this, function() {
-            this.setMuted(!this.isMuted);
-            this.emit('done-displaying-content', false);
-        }));
-        rightClickMenu.add(item.actor);
-        return rightClickMenu;
+        this._banner.actor.connect('destroy', Lang.bind(this,
+                                                        function() {
+                                                            this._banner = null;
+                                                        }));
+
+        return this._banner;
     },
 
      _createPolicy: function() {
@@ -235,7 +231,7 @@ const Source = new Lang.Class({
         this._avatarUri = avatarUri;
         this.iconUpdated();
         this._notification.update(this._notification.title, null,
-                                  { customContent: true,
+                                  {
                                     secondaryGIcon: this.getSecondaryIcon() });
 
         let message = wrappedText(this._initialMessage, this._author, this.title, null, TelepathyClient.NotificationDirection.RECEIVED);
@@ -413,8 +409,7 @@ const Source = new Lang.Class({
 
         this._presence = presence;
         this._notification.update(this._notification.title, null,
-                                  { customContent: true,
-                                    secondaryGIcon: this.getSecondaryIcon() });
+                                  { secondaryGIcon: this.getSecondaryIcon() });
     }
 });
 
